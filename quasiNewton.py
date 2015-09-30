@@ -22,7 +22,7 @@ class QuasiNewton:
     setMode(self, isExact):
         self.isExact = isExact
 
-    _exactLineSearch_(alphai,x_k,s_k,f_bar):
+    _exactLineSearch_(x_k,s_k,f_bar,alphai=1):
         SomethingLarge=100
         alpha_prev = 0
         f_prev = self.function(x_k)
@@ -54,10 +54,15 @@ class QuasiNewton:
             
     _NextIteration_(aj,bj,i,x_k,s_k,f0):   
         somethinglarge=100
+        tau2=0.1
+        tau3=1/2
+        epsilon=10**(-10)
         for j in range(i, somethinglarge):
-            #tau2=0.1, tau3=1/2
             alphaj=self._choose_(aj+tau2*(bj-aj),bj-tau3*(bj-aj))
             f=self.function(x_k+alphaj*s_k)
+            fderivaj=1 #this must be changed to f'(aj)
+            if (aj-alphaj)*fderivaj<=epsilon):
+                return (x,aj)
             if f>f0+self.rho**2*alphaj or f>=self.function(x_k+aj*s_k):
                 bj=alphaj
             else:
@@ -69,8 +74,8 @@ class QuasiNewton:
                 aj=alphaj
         return (x,aj)
 
-    _choose_(mina,maxa):
-        return (maxa-mina)/2
+    _choose_(minaj,maxaj):
+        return (maxaj+minaj)/2
 
     _inexactLineSearch_():    
         pass

@@ -25,10 +25,24 @@ class QuasiNewton:
         self.isExact = isExact
 
     _derive_(x,s): #Wrong
+        ''' 
+        Returns the derivative of (self.)function with respect to alpha
+        '''
         return lambda alpha: self.function(x+alpha*s)
         
 
     _exactLineSearch_(x_k,s_k,f_bar,alphai=1):
+        '''
+        Calculate the alpha which minimizes the function supplied to the class in init
+
+        Args:
+            x_k: A vector containing the x values for which alpha is to be calculated.
+            s_k: A vector containing the direction to look in.
+            f_bar: The tolerance level, meaning all alpha that return a function value lower or equal to f_bar are ok.
+            alphai: The starting value of alpha, with default value 1, used to calculate the correct alpha.
+        Returns:
+            The alpha which minimizes the function supplied to the class
+        '''
         self.fderive = self._derive_(x_k,s_k) #Self????
         SomethingLarge=100
         alpha_prev = 0

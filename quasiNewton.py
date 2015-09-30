@@ -1,3 +1,5 @@
+import numpy
+
 class QuasiNewton:
     #Description:
     
@@ -22,23 +24,29 @@ class QuasiNewton:
     setMode(self, isExact):
         self.isExact = isExact
 
+    _derive_(x,s): #Wrong
+        return lambda alpha: self.function(x+alpha*s)
+        
+
     _exactLineSearch_(x_k,s_k,f_bar,alphai=1):
+        self.fderive = self._derive_(x_k,s_k) #Self????
         SomethingLarge=100
         alpha_prev = 0
         f_prev = self.function(x_k)
         f0=self.function(x_k)
-        mu=(f_bar-f0)/(self.rho**2) #could be wrong, fletcher...f'(0)
+        self.fderive0 = self.fderive(0) #Self???
+        mu=(f_bar-f0)/(self.rho*self.fderive0) 
         for i in range(0,SomethingLarge):
             f=self.function(x_k+alphai*s_k)
             if f<=f_bar:
                 return alphai
-            if (f>f0+alphai*self.rho) or f>=f_prev:
+            if (f>f0+alphai*self.rho*self.fderive0) or f>=f_prev: #could be wrong, fletcher...f'(0)
                 ai=alpha_prev
                 bi=alphai
                 #terminate block end
                 return self._NextIteration_(ai,bi,i,x_k,s_k,f0)
-            f_deriv = 5 #This must be changed to f'(alphai)
-            if abs(f_deriv)<=-self.sigma*self.rho:
+            f_deriv = self.fderive(alphai)#This must be changed to f'(alphai)
+            if abs(f_deriv)<=-self.sigma*self.fderive0:
                 return alphai
             if f_deriv>=0:
                 ai = alphai
@@ -60,14 +68,14 @@ class QuasiNewton:
         for j in range(i, somethinglarge):
             alphaj=self._choose_(aj+tau2*(bj-aj),bj-tau3*(bj-aj))
             f=self.function(x_k+alphaj*s_k)
-            fderivaj=1 #this must be changed to f'(aj)
+            fderivaj=self.fderive(aj)#this must be changed to f'(aj)
             if (aj-alphaj)*fderivaj<=epsilon):
                 return alphaj
-            if f>f0+self.rho**2*alphaj or f>=self.function(x_k+aj*s_k):
+            if f>f0+self.rho*alphaj*self.fderive0 or f>=self.function(x_k+aj*s_k):
                 bj=alphaj
             else:
-                f_deriv = 5 #this must be changed to f'(alphaj)
-                if abs(f_deriv)<=-self.sigma*self.rho:
+                f_deriv = self.fderive(alphaj) #this must be changed to f'(alphaj)
+                if abs(f_deriv)<=-self.sigma*self.fderive0:
                     return alphaj
                 if (bj-aj)*f_deriv>=0:
                     bj=aj

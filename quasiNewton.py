@@ -31,7 +31,7 @@ class QuasiNewton:
         for i in range(0,SomethingLarge):
             f=self.function(x_k+alphai*s_k)
             if f<=f_bar:
-                return (x_k,alphai)
+                return alphai
             if (f>f0+alphai*self.rho) or f>=f_prev:
                 ai=alpha_prev
                 bi=alphai
@@ -39,7 +39,7 @@ class QuasiNewton:
                 return self._NextIteration_(ai,bi,i,x_k,s_k,f0)
             f_deriv = 5 #This must be changed to f'(alphai)
             if abs(f_deriv)<=-self.sigma*self.rho:
-                return (x_k,alphai)
+                return alphai
             if f_deriv>=0:
                 ai = alphai
                 bi = alpha_prev
@@ -62,17 +62,17 @@ class QuasiNewton:
             f=self.function(x_k+alphaj*s_k)
             fderivaj=1 #this must be changed to f'(aj)
             if (aj-alphaj)*fderivaj<=epsilon):
-                return (x,aj)
+                return alphaj
             if f>f0+self.rho**2*alphaj or f>=self.function(x_k+aj*s_k):
                 bj=alphaj
             else:
                 f_deriv = 5 #this must be changed to f'(alphaj)
                 if abs(f_deriv)<=-self.sigma*self.rho:
-                    return (x_k,alphaj)
+                    return alphaj
                 if (bj-aj)*f_deriv>=0:
                     bj=aj
                 aj=alphaj
-        return (x,aj)
+        return alphaj
 
     _choose_(minaj,maxaj):
         return (maxaj+minaj)/2

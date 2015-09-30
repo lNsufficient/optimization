@@ -36,7 +36,7 @@ class QuasiNewton:
                 ai=alpha_prev
                 bi=alphai
                 #terminate block end
-                return self._NewtonIteration_(ai,bi)
+                return self._NextIteration_(ai,bi,i,x_k,s_k,f0)
             f_deriv = 5 #This must be changed to f'(alphai)
             if abs(f_deriv)<=-self.sigma*self.rho:
                 return (x_k,alphai)
@@ -44,17 +44,33 @@ class QuasiNewton:
                 ai = alphai
                 bi = alpha_prev
                 #terminate block end
-                return self._NewtonIteration_(ai,bi)
+                return self._NextIteration_(ai,bi,i,x_k,s_k,f0)
             if mu<=2*alphai-alpha_prev:
                 (alphai,alpha_prev) = (mu,alphai)
             else:
-                (alphai,alpha_prev) = (2*alphai-alpha_prev,alphai)
-                #alphai belongs to [2*alphai-alpha_prev, min(mu,alphai+tau1*(alphai-alpha_prev))], tau1>1, tau1=9
+                tau1=9
+                (alphai,alpha_prev) = (self._choose_(2*alphai-alpha_prev,min(mu,alphai+tau1*(alphai-alpha_prev)),alphai)
             f_prev=f
             
-    _NewtonIteration_(ai,bi,x_prev,s_k):   
-        x=x_prev-s_k 
-        return (x,ai)
+    _NextIteration_(aj,bj,i,x_k,s_k,f0):   
+        somethinglarge=100
+        for j in range(i, somethinglarge):
+            #tau2=0.1, tau3=1/2
+            alphaj=self._choose_(aj+tau2*(bj-aj),bj-tau3*(bj-aj))
+            f=self.function(x_k+alphaj*s_k)
+            if f>f0+self.rho**2*alphaj or f>=self.function(x_k+aj*s_k):
+                bj=alphaj
+            else:
+                f_deriv = 5 #this must be changed to f'(alphaj)
+                if abs(f_deriv)<=-self.sigma*self.rho:
+                    return (x_k,alphaj)
+                if (bj-aj)*f_deriv>=0:
+                    bj=aj
+                aj=alphaj
+        return (x,aj)
+
+    _choose_(mina,maxa):
+        return (maxa-mina)/2
 
     _inexactLineSearch_():    
         pass

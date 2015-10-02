@@ -4,50 +4,47 @@
 
 
 class Optimization(Object):
-    def __init__(self, function, gradient=none):
-        self.function = function
-        self.gradient = gradient
+    def __init__(self, function, gradient=none): #This should be okay even for
+        self.function = function #(...) subclasses, if they don't send any 
+        self.gradient = gradient #(...) gradient?
 
     def __call__(self, x0):
         minimize(x0)
     
     def minimize(self, x0):
-        
-
-
-
-class Newton(Optimization):
-    def __init__(self):
-        super(function, gradient)
-
-    def solve(self, x0):
         #Compute s^k = -H^k*g^k
         #Line search for alpha^k
         alpha = lineSearch()
         #Compute x^(k+1) = x^k+alpha^k*s^k
         #Find next H^k
-    
-    def lineSearch(self): 
+
+    def lineSearch(self): #Since this is just an optimization class
         if (self.isExact == true):
             return exactLineSearch()
         else
             return inexactLineSearch()
-    
-    def hessian(self, ):
-        #This is done in different ways depending on the class...inheritance
-        #decided to call it hessian even here because after all G^-1 will be calculated... 
-    
-    def lineSearch(self, ):
         #Here goes the line search algorithm! :) 
         #It is okay for this method to call for hessians and things like that,
         #since the classes that will be created themself contain the hessian
         #method (even though this does not contain it)
 
-class QuasiNewton(Newton):
-    def __init__():
-        #perform superinit super()
-        self.isExact = false
-        #Sedan behöver väl inte klasserna som ärver av denna ha en egen init?
+
+
+class QuasiNewton(Optimization):
+    def __init__(self, function, gradient=none, isExact=false):
+        super().__init__(function, gradient, isExact)
+        #Sedan behöver inte klasserna som ärver av denna ha en egen init!
+
+    def __init__(self, function, gradient = none, isExact = false):
+        super().__init__(function, gradient, isExact)
+        self.isExact = isExact
+
+class Newton(QuasiNewton): #This should probably inherit from QuasiNewton instead, even though it feels strange.
+    
+    def hessian(self, ):
+        #This is done in different ways depending on the class...inheritance
+        #decided to call it hessian even here because after all G^-1 will be calculated... 
+    
 
 class GoodBroyden(QuasiNewton):
     #Rank 1 update -- see wikipedia broyden's method

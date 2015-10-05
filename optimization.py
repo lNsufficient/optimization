@@ -13,31 +13,41 @@
 #Minus)
 
 import numpy as N
+import scipy
+import scipy.linalg
 
-class OptimizationProblem(Object):
+f = lambda x: x[0]^2+x[1]^2+x[2]^2
+g = lambda x: N.array([2*x[0], 2*x[1], 2*x[2]])
 
-    def __init__(self, function, gradient=none): #This should be okay even for
+
+
+
+class OptimizationProblem(object):
+
+    def __init__(self, function, gradient=None): #This should be okay even for
         self.function = function #(...) subclasses, if they don't send any 
-        if (gradient == none):
-            gradient = computeGradient(function);
-        self.gradient = gradient #(...) gradient?
+        if (gradient == None):
+            self.gradient = self.computeGradient(function)
+        else:
+            self.gradient = gradient #(...) gradient?
 
     def computeGradient(function, x):
         h = 1e-7
         d = N.eye(N.size(x))*h
-        g = array([lambda x: (f(x+d[:,i])-f(x-d[:,i]))/(2*h) for i in range(N.size(x))])
+        g = N.array([lambda x: (f(x+d[:,i])-f(x-d[:,i]))/(2*h) for i in range(N.size(x))])
+        return g
 
-class Optimization(Object):
+class Optimization(object):
     def __init__(self, problemObject):
         self.function = problemObject.function
         self.gradient = problemObject.gradient
 
     def __call__(self, x0):
-        minimize(x0)
+       self.minimize(x0)
 
     
     def minimize(self, x0):
-        H_k = setupHessian(x0) #what will be done the first run?!
+        H_k = self.setupHessian(x0) #what will be done the first run?!
                 #what is g_km1? x_k = x0, g_k = gradient(x_k)
                 #what will H_k be the first run?
         self.g_k = self.gradient(x0)
@@ -58,8 +68,9 @@ class Optimization(Object):
                 H_k = setupHessian(x_k)
             else:
                 H_k = self.hessian(H_k, gamma_k(), delta_k())                 
-            if (finished = true):
+            if (alpha_k < 1e-3):
                 break
+        return x_k
 
     def gamma_k(self): #This will only be needed once every run, so it was 
                         #decided not to make this an attribute
@@ -69,12 +80,14 @@ class Optimization(Object):
         return self.x_k - self.x_km1
 
 class Newton(Optimization): #This should probably inherit from QuasiNewton instead, even though it feels strange.
-    def __init__(self, function, gradient = none, isExact = false):
-        super().__init__(function, gradient, isExact)
+    def __init__(self, oP, isExact=False):
+        super().__init__(oP)
         self.isExact = isExact
     
     def setupHessian(self, x_k):
-        G = numericHessian(x_k) #Visst sa claus att vi skulle hitta fkn?
+        G = N.array([[self.numericHessian(x_k)(x_k)[i,j] for i in range(N.size(x_k))] for j in range(N.size(x_k))]) #Visst sa claus att vi skulle hitta fkn?
+        #G = self.numericHessian(x)
+        print(G)
         self.cholesky = scipy.linalg.cho_factor(G)
         
             #raise ValueError('Hessian is not positive definite')
@@ -82,10 +95,10 @@ class Newton(Optimization): #This should probably inherit from QuasiNewton inste
             #then python will raise an error itself.
         return 1/2*(G.conj()+ G.T.conj())
 
-    def numericHessian(self, x)
+    def numericHessian(self, x):
         h = 1e-7
-        d = N.eye(size(x))*h
-        H  = [[lambda x: (self.gradient(x+d[:,j])[i]-self.gradient(x-d[:,j])[i])/(2*h) for j in range(size(x))] for i in range(size(x))] 
+        d = N.eye(N.size(x))*h
+        H  = N.array([[lambda x: (self.gradient[i](x+d[:,j])-self.gradient[i](x-d[:,j]))/(2*h) for j in range(N.size(x))] for i in range(N.size(x))])
         return H
 
     def newtonDirection(self, G):
@@ -98,7 +111,7 @@ class Newton(Optimization): #This should probably inherit from QuasiNewton inste
     def lineSearch(self,x_k,s_k,f_bar): #Since this is just an optimization class
         if (self.isExact == true):
             return exactLineSearch(x_k,s_k,f_bar)
-        else
+        else:
             return inexactLineSearch(x_k,s_k,f_bar)
         #Here goes the line search algorithm! :) 
         #It is okay for this method to call for hessians and things like that,
@@ -145,7 +158,7 @@ class Newton(Optimization): #This should probably inherit from QuasiNewton inste
                 (alphai,alpha_prev) = (mu,alphai)
             else:
                 tau1=9
-                (alphai,alpha_prev) = (self._choose_(2*alphai-alpha_prev,min(mu,alphai+tau1*(alphai-alpha_prev)),alphai)
+                (alphai,alpha_prev) = (self._choose_(2*alphai-alpha_prev,min(mu,alphai+tau1*(alphai-alpha_prev)),alphai))
             f_prev=f
             
     def _NextIteration_(aj,bj,i,x_k,s_k,f0):   
@@ -157,7 +170,7 @@ class Newton(Optimization): #This should probably inherit from QuasiNewton inste
             alphaj=self._choose_(aj+tau2*(bj-aj),bj-tau3*(bj-aj))
             f=self.function(x_k+alphaj*s_k)
             fderivaj=self.fderive(aj)
-            if (aj-alphaj)*fderivaj<=epsilon):
+            if ((aj-alphaj)*fderivaj<=epsilon):
                 return alphaj
             if f>f0+self.rho*alphaj*self.fderive0 or f>=self.function(x_k+aj*s_k):
                 bj=alphaj
@@ -184,7 +197,7 @@ class Newton(Optimization): #This should probably inherit from QuasiNewton inste
 
     def _exactLineSearch_(x_k,s_k,f_bar):
         fderive=_derive_(x_k,s_k)
-        mu=(f_bar-self.function(x_k)/(self.rho*fderive(x_k))
+        mu=(f_bar-self.function(x_k)/(self.rho*fderive(x_k)))
         alpha = N.linspace(0,mu,1000)
         test = lambda alpha: self.function(x_k+alpha*s_k)
         for i in range(0,1000):
@@ -207,7 +220,7 @@ class BadBroyden(Newton):
         #H = inv(Q)
         return H + N.dot((delta - N.dot(H,gamma))/(N.dot(gamma, gamma)),gamma)
 
-class DFP(Newton) #Uses 3.18 for H
+class DFP(Newton): #Uses 3.18 for H
 
     def hessian(self, H, gamma, delta):
 #        H = self.H #This increases readability a lot, and since they are just objects, it will probably not waste a lot of computational power
@@ -215,10 +228,15 @@ class DFP(Newton) #Uses 3.18 for H
   #      delta = self.delta
         return H + N.outer(delta, delta)/N.dot(delta, gamma) - N.dot(N.dot(H,gamma),N.dot(gamma,H))/N.dot(gamma,N.dot(H,gamma))
 
-class BFGS(Newton)
+class BFGS(Newton):
 
     def hessian(self, H, gamma, delta):
     #    H = self.H
      #   gamma = self.gamma
       #  delta = self.delta
         return H + (1 + N.dot(N.dot(gamma,H),gamma)/N.dot(delta,gamma))*N.outer(delta,delta)/N.dot(delta,gamma)-(N.outer(delta,N.dot(gamma,H)) + N.outer(N.dot(H,gamma),delta))/dot(delta,gamma)
+
+
+op = OptimizationProblem(f)
+minimize = Newton(op)
+minimize(N.array([0,0,1]))

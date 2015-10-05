@@ -48,11 +48,11 @@ class Newton(Optimization): #This should probably inherit from QuasiNewton inste
             #then python will raise an error itself.
         return 1/2*(G.conj()+ G.T.conj())
 
-    def lineSearch(self): #Since this is just an optimization class
+    def lineSearch(self,x_k,s_k,f_bar): #Since this is just an optimization class
         if (self.isExact == true):
-            return exactLineSearch()
+            return exactLineSearch(x_k,s_k,f_bar)
         else
-            return inexactLineSearch()
+            return inexactLineSearch(x_k,s_k,f_bar)
         #Here goes the line search algorithm! :) 
         #It is okay for this method to call for hessians and things like that,
         #since the classes that will be created themself contain the hessian
@@ -135,8 +135,14 @@ class Newton(Optimization): #This should probably inherit from QuasiNewton inste
         return lambda alpha: (self.function(x+(alpha+h)*s)-self.function(x+(alpha-h)*s))/(2*h*snorm)
         
 
-    def _exactLineSearch_()
-        
+    def _exactLineSearch_(x_k,s_k,f_bar):
+        fderive=_derive_(x_k,s_k)
+        mu=(f_bar-self.function(x_k)/(self.rho*fderive(x_k))
+        alpha = N.linspace(0,mu,1000)
+        test = lambda alpha: self.function(x_k+alpha*s_k)
+        for i in range(0,1000):
+            alpha[i]=test(alpha[i])
+        return mu*N.argmin(alpha)/1000
 
 class GoodBroyden(Newton):
     #Rank 1 update -- see wikipedia broyden's method

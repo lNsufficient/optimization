@@ -16,8 +16,6 @@ import numpy as N
 import scipy
 import scipy.linalg
 
-f = lambda x: x[0]^2+x[1]^2+x[2]^2
-g = lambda x: N.array([2*x[0], 2*x[1], 2*x[2]])
 
 
 
@@ -26,41 +24,52 @@ class OptimizationProblem(object):
 
     def __init__(self, function, gradient=None): #This should be okay even for
         self.function = function #(...) subclasses, if they don't send any 
-        if (gradient == None):
-            self.gradient = self.computeGradient(function)
-        else:
-            self.gradient = gradient #(...) gradient?
-
-    def computeGradient(function, x):
-        h = 1e-7
-        d = N.eye(N.size(x))*h
-        g = N.array([lambda x: (f(x+d[:,i])-f(x-d[:,i]))/(2*h) for i in range(N.size(x))])
-        return g
+        self.h = 1e-7
+        self.gradient = gradient
 
 class Optimization(object):
     def __init__(self, problemObject):
         self.function = problemObject.function
         self.gradient = problemObject.gradient
+        self.h = problemObject.h
+        self.defineConstants()
+
+    def defineConstants(self):
+        self.rho = 1
+        self.xi = 9
+        self.sigma = 0.1
+        self.tau = 0.3
 
     def __call__(self, x0):
        self.minimize(x0)
 
     
+    def computeGradient(self, x_k):
+        h = self.h
+        xsize = N.size(x_k)
+        d = N.eye(xsize)*h
+        g = N.array(list([lambda x, i=i: (self.function(x+d[i,:])-self.function(x-d[i,:]))/(2*h) for i in range(xsize)]))
+        return N.array(g)
+
     def minimize(self, x0):
+        if (self.gradient == None):
+            self.gradient = self.computeGradient(x0)
+
         H_k = self.setupHessian(x0) #what will be done the first run?!
                 #what is g_km1? x_k = x0, g_k = gradient(x_k)
                 #what will H_k be the first run?
-        self.g_k = self.gradient(x0)
+        self.g_k = [self.gradient[i](x0) for i in range(N.size(x0))]
+        print(self.g_k)
         x_k = x0
-
-        while (true):
+        tol = 1e-3
+        while (True):
             #Compute s^k = -H^k*g^k
-            if (self.quasiNewton == false):
+            if (self.quasiNewton == False):
                 s_k = self.newtonDirection(H_k, self.g_k)
             else:
                 s_k = -H_k*self.g_k
             #Line search for alpha^k
-            alpha_k = self.lineSearch(x_k, s_k)
+            alpha_k = self.lineSearch(x_k, s_k, tol)
             (self.x_k, self.x_km1)= (x_k+alpha_k*s_k, x_k)
             (self.g_k, self.g_km1) = (self.gradient(x_k), self.g_k) #Was very  convenient to make g_k attribute
 
@@ -83,9 +92,19 @@ class Newton(Optimization): #This should probably inherit from QuasiNewton inste
     def __init__(self, oP, isExact=False):
         super().__init__(oP)
         self.isExact = isExact
+        self.quasiNewton = False
     
     def setupHessian(self, x_k):
-        G = N.array([[self.numericHessian(x_k)(x_k)[i,j] for i in range(N.size(x_k))] for j in range(N.size(x_k))]) #Visst sa claus att vi skulle hitta fkn?
+        G = self.numericHessian(x_k)
+        print("==g(whole)==")
+        print(N.shape(self.gradient))
+        print("=====")
+        print(G[0,0])
+        print("==g==")
+        print(self.gradient[1](N.array([0,0,0])))
+        print("=====")
+        print(G[0,0](x_k))
+        G = N.array([[self.numericHessian(x_k)[i,j](x_k) for i in range(N.size(x_k))] for j in range(N.size(x_k))]) #Visst sa claus att vi skulle hitta fkn?
         #G = self.numericHessian(x)
         print(G)
         self.cholesky = scipy.linalg.cho_factor(G)
@@ -96,29 +115,29 @@ class Newton(Optimization): #This should probably inherit from QuasiNewton inste
         return 1/2*(G.conj()+ G.T.conj())
 
     def numericHessian(self, x):
-        h = 1e-7
+        h = self.h
         d = N.eye(N.size(x))*h
-        H  = N.array([[lambda x: (self.gradient[i](x+d[:,j])-self.gradient[i](x-d[:,j]))/(2*h) for j in range(N.size(x))] for i in range(N.size(x))])
+        H  = N.array([[lambda x, i=i, j=j: (self.gradient[i](x+d[:,j])-self.gradient[i](x-d[:,j]))/(2*h) for j in range(N.size(x))] for i in range(N.size(x))])
         return H
 
-    def newtonDirection(self, G):
+    def newtonDirection(self, G, g_k):
         #VERY IMPORTANT: Make sure that setup hessian has been run before running this, otherwise this will be super incorrect.        
 
 
         #Ginv*g => G*a = g, a = Ginv*g = cho_solve(cho_factor(G), g)
-        return scipy.linalg.cho_solve(self.cholesky,g_k) 
+        return scipy.linalg.cho_solve(scipy.linalg.cho_factor(G),g_k) 
 
     def lineSearch(self,x_k,s_k,f_bar): #Since this is just an optimization class
-        if (self.isExact == true):
-            return exactLineSearch(x_k,s_k,f_bar)
+        if (self.isExact == True):
+            return self._exactLineSearch_(x_k,s_k,f_bar)
         else:
-            return inexactLineSearch(x_k,s_k,f_bar)
+            return self._inexactLineSearch_(x_k,s_k,f_bar)
         #Here goes the line search algorithm! :) 
         #It is okay for this method to call for hessians and things like that,
         #since the classes that will be created themself contain the hessian
         #method (even though this does not contain it)
 
-    def _inexactLineSearch_(x_k,s_k,f_bar,alphai=1):
+    def _inexactLineSearch_(self, x_k,s_k,f_bar,alphai=1):
         '''
         Calculate the alpha which minimizes the function supplied to the class in init
 
@@ -161,7 +180,7 @@ class Newton(Optimization): #This should probably inherit from QuasiNewton inste
                 (alphai,alpha_prev) = (self._choose_(2*alphai-alpha_prev,min(mu,alphai+tau1*(alphai-alpha_prev)),alphai))
             f_prev=f
             
-    def _NextIteration_(aj,bj,i,x_k,s_k,f0):   
+    def _NextIteration_(self, aj,bj,i,x_k,s_k,f0):   
         somethinglarge=100
         tau2=0.1
         tau3=1/2
@@ -183,10 +202,10 @@ class Newton(Optimization): #This should probably inherit from QuasiNewton inste
                 aj=alphaj
         return alphaj
 
-    def _choose_(minaj,maxaj):
+    def _choose_(self, minaj,maxaj):
         return (maxaj+minaj)/2
 
-    def _derive_(x,s): 
+    def _derive_(self,x,s): 
         ''' 
         Returns the derivative of (self.)function with respect to alpha
         '''
@@ -195,7 +214,7 @@ class Newton(Optimization): #This should probably inherit from QuasiNewton inste
         return lambda alpha: (self.function(x+(alpha+h)*s)-self.function(x+(alpha-h)*s))/(2*h*snorm)
         
 
-    def _exactLineSearch_(x_k,s_k,f_bar):
+    def _exactLineSearch_(self, x_k,s_k,f_bar):
         fderive=_derive_(x_k,s_k)
         mu=(f_bar-self.function(x_k)/(self.rho*fderive(x_k)))
         alpha = N.linspace(0,mu,1000)
@@ -237,6 +256,8 @@ class BFGS(Newton):
         return H + (1 + N.dot(N.dot(gamma,H),gamma)/N.dot(delta,gamma))*N.outer(delta,delta)/N.dot(delta,gamma)-(N.outer(delta,N.dot(gamma,H)) + N.outer(N.dot(H,gamma),delta))/dot(delta,gamma)
 
 
+f = lambda x: x[0]**2+x[1]**2+x[2]**2
+g = lambda x: N.array([2*x[0], 2*x[1], 2*x[2]])
 op = OptimizationProblem(f)
 minimize = Newton(op)
 minimize(N.array([0,0,1]))

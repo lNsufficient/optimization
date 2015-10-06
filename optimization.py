@@ -54,36 +54,38 @@ class Optimization(object):
     def minimize(self, x0):
         if (self.gradient == None):
             self.gradient = self.computeGradient(x0)
-
-        H_k = self.setupHessian(x0) #what will be done the first run?!
+        if (self.quasiNewton == False):
+            H_k = self.setupHessian(x0) #what will be done the first run?!
                 #what is g_km1? x_k = x0, g_k = gradient(x_k)
                 #what will H_k be the first run?
+        else: 
+            H_k = N.eye(N.size(x0))
         self.g_k = [self.gradient[i](x0) for i in range(N.size(x0))]
         print("Initial gradient: " + str(self.g_k))
-        x_k = x0
+        self.x_k = x0
         tol = 1e-5
         while (True):
             #Compute s^k = -H^k*g^k
             if (self.quasiNewton == False):
                 s_k = self.newtonDirection(H_k, self.g_k)
             else:
-                s_k = -H_k*self.g_k
+                s_k = -N.dot(H_k,self.g_k)
             #Line search for alpha^k
-            alpha_k = self.lineSearch(x_k, s_k, tol)
+            alpha_k = self.lineSearch(self.x_k, s_k, tol)
             print("alpha_k: " + str(alpha_k))
             print("s_k: " + str(s_k))
-            (x_k, self.x_km1)= (x_k+alpha_k*s_k, x_k)
-            (self.g_k, self.g_km1) = ([self.gradient[i](x_k) for i in range(N.size(x_k))], self.g_k) #Was very  convenient to make g_k attribute
+            (self.x_k, self.x_km1)= (self.x_k+alpha_k*s_k, self.x_k)
+            (self.g_k, self.g_km1) = (N.array([self.gradient[i](self.x_k) for i in range(N.size(self.x_k))]), self.g_k) #Was very  convenient to make g_k attribute
 
             if (self.quasiNewton == False):
-                H_k = self.setupHessian(x_k)
+                H_k = self.setupHessian(self.x_k)
             else:
-                H_k = self.hessian(H_k, gamma_k(), delta_k())                 
-            if (N.linalg.norm(x_k - self.x_km1) < tol):
+                H_k = self.hessian(H_k, self.gamma_k(), self.delta_k())                 
+            if (N.linalg.norm(self.x_k - self.x_km1) < tol):
                 break
-            print("x_k: " + str(x_k))
-        print("x_min: " + str(x_k))
-        return x_k
+            print("x_k: " + str(self.x_k))
+        print("x_min: " + str(self.x_k))
+        return self.x_k
 
     def gamma_k(self): #This will only be needed once every run, so it was 
                         #decided not to make this an attribute
@@ -213,21 +215,29 @@ class Newton(Optimization): #This should probably inherit from QuasiNewton inste
         ''' 
         Returns the derivative of (self.)function with respect to alpha
         '''
-        h=10**(-10)
-        snorm =N.linalg.norm(s)
-        return lambda alpha: (self.function(x+(alpha+h)*s)-self.function(x+(alpha-h)*s))/(2*h*snorm)
+        h=self.h
+        print("h: "+ str(h))
+        return lambda alpha: (self.function(x+(alpha+h)*s)-self.function(x+(alpha-h)*s))/(2*h)
         
 
     def _exactLineSearch_(self, x_k,s_k,f_bar):
+        print("f_bar: " + str(f_bar))
         fderive=self._derive_(x_k,s_k)
-        mu=(f_bar-self.function(x_k)/(self.rho*fderive(x_k)))
+        print("fderive: " + str(fderive(0)))
+        mu=(f_bar-self.function(x_k))/(self.rho*fderive(0))
+        print("mu: " + str(mu))
         alpha = N.linspace(0,mu,1000)
         test = lambda alpha: self.function(x_k+alpha*s_k)
         for i in range(0,1000):
             alpha[i]=test(alpha[i])
         return mu*N.argmin(alpha)/1000
+class QuasiNewton(Newton):
+    def __init__(self, oP, isExact=True):
+        super().__init__(oP, isExact)
+        self.quasiNewton = True
 
-class GoodBroyden(Newton):
+
+class GoodBroyden(QuasiNewton):
     #Rank 1 update -- see wikipedia broyden's method
 
     def hessian(self, H, gamma, delta):
@@ -235,7 +245,7 @@ class GoodBroyden(Newton):
         u = delta - N.dot(H,gamma)
         return H + 1/N.dot(u,gamma)*N.outer(u,u)
     
-class BadBroyden(Newton):
+class BadBroyden(QuasiNewton):
     #Every step, caclulate Q(k), then use G^-1 = H, where H = Q(k)^-1 -- see wikipedia broyden's method 
 
     def hessian(self, H, gamma, delta):
@@ -243,7 +253,7 @@ class BadBroyden(Newton):
         #H = inv(Q)
         return H + N.dot((delta - N.dot(H,gamma))/(N.dot(gamma, gamma)),gamma)
 
-class DFP(Newton): #Uses 3.18 for H
+class DFP(QuasiNewton): #Uses 3.18 for H
 
     def hessian(self, H, gamma, delta):
 #        H = self.H #This increases readability a lot, and since they are just objects, it will probably not waste a lot of computational power
@@ -251,18 +261,19 @@ class DFP(Newton): #Uses 3.18 for H
   #      delta = self.delta
         return H + N.outer(delta, delta)/N.dot(delta, gamma) - N.dot(N.dot(H,gamma),N.dot(gamma,H))/N.dot(gamma,N.dot(H,gamma))
 
-class BFGS(Newton):
+class BFGS(QuasiNewton):
 
     def hessian(self, H, gamma, delta):
     #    H = self.H
      #   gamma = self.gamma
       #  delta = self.delta
-        return H + (1 + N.dot(N.dot(gamma,H),gamma)/N.dot(delta,gamma))*N.outer(delta,delta)/N.dot(delta,gamma)-(N.outer(delta,N.dot(gamma,H)) + N.outer(N.dot(H,gamma),delta))/dot(delta,gamma)
+        return H + (1 + N.dot(N.dot(gamma,H),gamma)/N.dot(delta,gamma))*N.outer(delta,delta)/N.dot(delta,gamma)-(N.outer(delta,N.dot(gamma,H)) + N.outer(N.dot(H,gamma),delta))/N.dot(delta,gamma)
 
 
 f = lambda x: (1-x[0])**4+x[1]**2-x[2]**2
 f = lambda x: 100*(x[1] - x[0]**2)**2+(1-x[0])**2
 g = lambda x: N.array([2*x[0], 2*x[1], 2*x[2]])
 op = OptimizationProblem(f)
-minimize = Newton(op, True)
-minimize(N.array([1,1]))
+#minimize = Newton(op, True)
+minimize = BFGS(op, True)
+minimize(N.array([10,10]))

@@ -35,10 +35,10 @@ class Optimization(object):
         self.defineConstants()
 
     def defineConstants(self):
-        self.rho = 1
+        self.rho = 0.1
         self.xi = 9
-        self.sigma = 0.1
-        self.tau = 0.3
+        self.sigma = 0.7
+        self.tau = 0.1
 
     def __call__(self, x0):
        self.minimize(x0)
@@ -59,9 +59,9 @@ class Optimization(object):
                 #what is g_km1? x_k = x0, g_k = gradient(x_k)
                 #what will H_k be the first run?
         self.g_k = [self.gradient[i](x0) for i in range(N.size(x0))]
-        print(self.g_k)
+        print("Initial gradient: " + str(self.g_k))
         x_k = x0
-        tol = 1e-3
+        tol = 1e-5
         while (True):
             #Compute s^k = -H^k*g^k
             if (self.quasiNewton == False):
@@ -70,15 +70,19 @@ class Optimization(object):
                 s_k = -H_k*self.g_k
             #Line search for alpha^k
             alpha_k = self.lineSearch(x_k, s_k, tol)
-            (self.x_k, self.x_km1)= (x_k+alpha_k*s_k, x_k)
-            (self.g_k, self.g_km1) = (self.gradient(x_k), self.g_k) #Was very  convenient to make g_k attribute
+            print("alpha_k: " + str(alpha_k))
+            print("s_k: " + str(s_k))
+            (x_k, self.x_km1)= (x_k+alpha_k*s_k, x_k)
+            (self.g_k, self.g_km1) = ([self.gradient[i](x_k) for i in range(N.size(x_k))], self.g_k) #Was very  convenient to make g_k attribute
 
-            if (self.quasiNewton == false):
-                H_k = setupHessian(x_k)
+            if (self.quasiNewton == False):
+                H_k = self.setupHessian(x_k)
             else:
                 H_k = self.hessian(H_k, gamma_k(), delta_k())                 
-            if (alpha_k < 1e-3):
+            if (N.linalg.norm(x_k - self.x_km1) < tol):
                 break
+            print("x_k: " + str(x_k))
+        print("x_min: " + str(x_k))
         return x_k
 
     def gamma_k(self): #This will only be needed once every run, so it was 
@@ -96,14 +100,14 @@ class Newton(Optimization): #This should probably inherit from QuasiNewton inste
     
     def setupHessian(self, x_k):
         G = self.numericHessian(x_k)
-        print("==g(whole)==")
-        print(N.shape(self.gradient))
-        print("=====")
-        print(G[0,0])
-        print("==g==")
-        print(self.gradient[1](N.array([0,0,0])))
-        print("=====")
-        print(G[0,0](x_k))
+#        print("==g(whole)==")
+ #       print(N.shape(self.gradient))
+  #      print("=====")
+   #     print(G[0,0])
+    #    print("==g==")
+     #   print(self.gradient[1](N.array([0,0,0])))
+      #  print("=====")
+       # print(G[0,0](x_k))
         G = N.array([[self.numericHessian(x_k)[i,j](x_k) for i in range(N.size(x_k))] for j in range(N.size(x_k))]) #Visst sa claus att vi skulle hitta fkn?
         #G = self.numericHessian(x)
         print(G)
@@ -125,7 +129,7 @@ class Newton(Optimization): #This should probably inherit from QuasiNewton inste
 
 
         #Ginv*g => G*a = g, a = Ginv*g = cho_solve(cho_factor(G), g)
-        return scipy.linalg.cho_solve(scipy.linalg.cho_factor(G),g_k) 
+        return -scipy.linalg.cho_solve(scipy.linalg.cho_factor(G),g_k) 
 
     def lineSearch(self,x_k,s_k,f_bar): #Since this is just an optimization class
         if (self.isExact == True):
@@ -215,7 +219,7 @@ class Newton(Optimization): #This should probably inherit from QuasiNewton inste
         
 
     def _exactLineSearch_(self, x_k,s_k,f_bar):
-        fderive=_derive_(x_k,s_k)
+        fderive=self._derive_(x_k,s_k)
         mu=(f_bar-self.function(x_k)/(self.rho*fderive(x_k)))
         alpha = N.linspace(0,mu,1000)
         test = lambda alpha: self.function(x_k+alpha*s_k)
@@ -256,8 +260,9 @@ class BFGS(Newton):
         return H + (1 + N.dot(N.dot(gamma,H),gamma)/N.dot(delta,gamma))*N.outer(delta,delta)/N.dot(delta,gamma)-(N.outer(delta,N.dot(gamma,H)) + N.outer(N.dot(H,gamma),delta))/dot(delta,gamma)
 
 
-f = lambda x: x[0]**2+x[1]**2+x[2]**2
+f = lambda x: (1-x[0])**4+x[1]**2-x[2]**2
+f = lambda x: 100*(x[1] - x[0]**2)**2+(1-x[0])**2
 g = lambda x: N.array([2*x[0], 2*x[1], 2*x[2]])
 op = OptimizationProblem(f)
-minimize = Newton(op)
-minimize(N.array([0,0,1]))
+minimize = Newton(op, True)
+minimize(N.array([1,1]))

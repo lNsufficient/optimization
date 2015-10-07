@@ -188,7 +188,7 @@ class Newton(Optimization): #This should probably inherit from QuasiNewton inste
                 (alphai,alpha_prev) = (mu,alphai)
             else:
                 tau1=9
-                (alphai,alpha_prev) = (self._choose_(2*alphai-alpha_prev,min(mu,alphai+tau1*(alphai-alpha_prev)),alphai))
+                (alphai,alpha_prev) = (self._choose_(2*alphai-alpha_prev,min(mu,alphai+tau1*(alphai-alpha_prev))),alphai)
             f_prev=f
             
     def _NextIteration_(self, aj,bj,i,x_k,s_k,f0):   
@@ -280,6 +280,6 @@ f = lambda x: 100*(x[1] - x[0]**2)**2+(1-x[0])**2
 g = lambda x: N.array([2*x[0], 2*x[1], 2*x[2]])
 op = OptimizationProblem(f)
 minimize = Newton(op, True)
-minimize = DFP(op, True)
-x_min = minimize(N.array([-3,1]))
+minimize = GoodBroyden(op, False)
+x_min = minimize(N.array([2,2]))
 print(x_min)

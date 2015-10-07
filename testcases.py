@@ -127,6 +127,14 @@ class testOptimization(unittest.TestCase):
         for i in range(2):
             self.assertTrue(abs(xmin[i]-expected[i])<0.0000001)
 
+    def testRosenbrockNewtonInexactBadGuess(self):
+        f = lambda x: 100*(x[1]-x[0]**2)**2+(1-x[0])**2
+        op = O.OptimizationProblem(f)
+        minimize = O.Newton(op,False)
+        xmin = minimize(N.array([14.,-7]))
+        expected = N.array([1.,1])
+        for i in range(2):
+            self.assertTrue(abs(xmin[i]-expected[i])<0.0000001)
 
 
 

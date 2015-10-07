@@ -41,7 +41,7 @@ class Optimization(object):
         self.tau = 0.1
 
     def __call__(self, x0):
-       self.minimize(x0)
+        return self.minimize(x0)
 
     
     def computeGradient(self, x_k):
@@ -264,7 +264,7 @@ class DFP(QuasiNewton): #Uses 3.18 for H
 #        H = self.H #This increases readability a lot, and since they are just objects, it will probably not waste a lot of computational power
  #       gamma = self.gamma
   #      delta = self.delta
-        return H + N.outer(delta, delta)/N.dot(delta, gamma) - N.dot(N.dot(H,gamma),N.dot(gamma,H))/N.dot(gamma,N.dot(H,gamma))
+        return H + N.outer(delta, delta)/N.dot(delta, gamma) - N.outer(N.dot(H,gamma),N.dot(gamma,H))/N.dot(gamma,N.dot(H,gamma))
 
 class BFGS(QuasiNewton):
 
@@ -281,4 +281,5 @@ g = lambda x: N.array([2*x[0], 2*x[1], 2*x[2]])
 op = OptimizationProblem(f)
 minimize = Newton(op, True)
 minimize = DFP(op, True)
-minimize(N.array([1.1,1]))
+x_min = minimize(N.array([-3,1]))
+print(x_min)

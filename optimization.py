@@ -57,7 +57,7 @@ class Optimization(object):
             H_k = N.eye(N.size(x0))
         self.g_k = [self.gradient[i](x0) for i in range(N.size(x0))]
         self.x_k = x0
-        tol = self.h*1e2
+        tol = self.h
 
         #This "The loop"
         while (True):
@@ -197,11 +197,24 @@ class Newton(Optimization):
     def _exactLineSearch_(self, x_k,s_k,f_bar):
         fderive=self._derive_(x_k,s_k)
         mu=(f_bar-self.function(x_k))/(self.rho*fderive(0))
+        test = lambda alpha: self.function(x_k+alpha*s_k) 
         alpha = N.linspace(0,mu,1000)
-        test = lambda alpha: self.function(x_k+alpha*s_k)
         for i in range(0,1000):
             alpha[i]=test(alpha[i])
         return mu*N.argmin(alpha)/1000
+ 
+#WHY DOES THIS NOT WORK:
+        tmin = 0
+        tmax = mu
+        points = 100
+        for j in range(3):
+            fpoints = [test(i) for i in N.linspace(tmin, tmax, points)]
+            deltat = (tmax-tmin)/points
+            minx = tmin + deltat*N.argmin(fpoints)
+            tmin = minx - deltat
+            tmax = minx + (tmax-tmin)/points  #should add deltat instead, doesn't work
+        return minx
+
 class QuasiNewton(Newton):
     def __init__(self, oP, isExact=True):
         super().__init__(oP, isExact)
@@ -239,5 +252,5 @@ g = lambda x: N.array([2*x[0], 2*x[1], 2*x[2]])
 op = OptimizationProblem(f)
 minimize = Newton(op, True)
 minimize = GoodBroyden(op, True)
-x_min = minimize(N.array([2,2]))
+x_min = minimize(N.array([1.9,11]))
 print(x_min)

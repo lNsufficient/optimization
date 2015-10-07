@@ -4,13 +4,7 @@
 #Linnéa Stövring-Nielsen
 #John Hellborg
 
-
-
-#Notes:
-#g^k = g(x^k)
-#slide 3.14 - there is an alpha missing for calculating x^(k+1)?
-#naming convention a^(k+1) is called a_kp1 (as in Plus), and a^(k-1) a_km1 (as in 
-#Minus)
+#naming convention a^(k+1) is called a_kp1 ("kPlus1"), and a^(k-1) a_km1(Minus)
 
 import numpy as N
 import scipy
@@ -41,7 +35,9 @@ class Optimization(object):
         self.tau = 0.1
 
     def __call__(self, x0):
-        return self.minimize(x0)
+        x_min = self.minimize(x0)
+        print("x_min: " + str(self.x_k))
+        return x_min 
 
     
     def computeGradient(self, x_k):
@@ -52,19 +48,18 @@ class Optimization(object):
         return N.array(g)
 
     def minimize(self, x0):
-        if (self.gradient == None):
-            self.gradient = self.computeGradient(x0)
+        #This is needed to get the while loop running
+        if (self.gradient == None): #Could not find any other way to know its 
+            self.gradient = self.computeGradient(x0) #dim, else than this.
         if (self.quasiNewton == False):
-            H_k = self.setupHessian(x0) #what will be done the first run?!
-                #what is g_km1? x_k = x0, g_k = gradient(x_k)
-                #what will H_k be the first run?
-            
+            H_k = self.setupHessian(x0) 
         else: 
             H_k = N.eye(N.size(x0))
         self.g_k = [self.gradient[i](x0) for i in range(N.size(x0))]
-        print("Initial gradient: " + str(self.g_k))
         self.x_k = x0
-        tol = 1e-5
+        tol = self.h*1e2
+
+        #This "The loop"
         while (True):
             #Compute s^k = -H^k*g^k
             if (self.quasiNewton == False):
@@ -73,29 +68,23 @@ class Optimization(object):
                 s_k = -N.dot(H_k,self.g_k)
             #Line search for alpha^k
             alpha_k = self.lineSearch(self.x_k, s_k, tol)
-            print("alpha_k: " + str(alpha_k))
-            print("s_k: " + str(s_k))
             (self.x_k, self.x_km1)= (self.x_k+alpha_k*s_k, self.x_k)
-            (self.g_k, self.g_km1) = (N.array([self.gradient[i](self.x_k) for i in range(N.size(self.x_k))]), self.g_k) #Was very  convenient to make g_k attribute
-
+            (self.g_k, self.g_km1) = (N.array([self.gradient[i](self.x_k) for i in range(N.size(self.x_k))]), self.g_k)
             if (self.quasiNewton == False):
                 H_k = self.setupHessian(self.x_k)
             else:
-                H_k = self.hessian(H_k, self.gamma_k(), self.delta_k())                 
+                H_k = self.hessian(H_k, self.gamma_k(), self.delta_k()) 
             if (N.linalg.norm(self.x_k - self.x_km1) < tol):
                 break
-            print("x_k: " + str(self.x_k))
-        print("x_min: " + str(self.x_k))
         return self.x_k
 
-    def gamma_k(self): #This will only be needed once every run, so it was 
-                        #decided not to make this an attribute
+    def gamma_k(self): 
         return self.g_k - self.g_km1
 
     def delta_k(self):
         return self.x_k - self.x_km1
 
-class Newton(Optimization): #This should probably inherit from QuasiNewton instead, even though it feels strange.
+class Newton(Optimization): 
     def __init__(self, oP, isExact=False):
         super().__init__(oP)
         self.isExact = isExact
@@ -103,23 +92,10 @@ class Newton(Optimization): #This should probably inherit from QuasiNewton inste
     
     def setupHessian(self, x_k):
         G = self.numericHessian(x_k)
-#        print("==g(whole)==")
- #       print(N.shape(self.gradient))
-  #      print("=====")
-   #     print(G[0,0])
-    #    print("==g==")
-     #   print(self.gradient[1](N.array([0,0,0])))
-      #  print("=====")
-       # print(G[0,0](x_k))
-        G = N.array([[self.numericHessian(x_k)[i,j](x_k) for i in range(N.size(x_k))] for j in range(N.size(x_k))]) #Visst sa claus att vi skulle hitta fkn?
-        #G = self.numericHessian(x)
-        print("G: " + str(G))
+        G = N.array([[self.numericHessian(x_k)[i,j](x_k) for i in range(N.size(x_k))] for j in range(N.size(x_k))]) 
         G = 1/2*(G.conj()+ G.T.conj())
-               
-            #raise ValueError('Hessian is not positive definite')
-            #This will never happen - the decomposition will fail instead,
-            #then python will raise an error itself.
         return G
+
     def numericHessian(self, x):
         h = self.h
         d = N.eye(N.size(x))*h
@@ -129,24 +105,18 @@ class Newton(Optimization): #This should probably inherit from QuasiNewton inste
     def newtonDirection(self, G, g_k):
         #VERY IMPORTANT: Make sure that setup hessian has been run before running this, otherwise this will be super incorrect.        
          
-        print("G: " + str(G))
         try:
             s_k = -scipy.linalg.cho_solve(scipy.linalg.cho_factor(G),g_k)
         except N.linalg.linalg.LinAlgError:
             LU = scipy.linalg.lu_factor(G)
             s_k = scipy.linalg.lu_solve(LU, g_k)
-        #Ginv*g => G*a = g, a = Ginv*g = cho_solve(cho_factor(G), g)
         return s_k 
 
-    def lineSearch(self,x_k,s_k,f_bar): #Since this is just an optimization class
+    def lineSearch(self,x_k,s_k,f_bar): 
         if (self.isExact == True):
             return self._exactLineSearch_(x_k,s_k,f_bar)
         else:
             return self._inexactLineSearch_(x_k,s_k,f_bar)
-        #Here goes the line search algorithm! :) 
-        #It is okay for this method to call for hessians and things like that,
-        #since the classes that will be created themself contain the hessian
-        #method (even though this does not contain it)
 
     def _inexactLineSearch_(self, x_k,s_k,f_bar,alphai=1):
         '''
@@ -221,16 +191,12 @@ class Newton(Optimization): #This should probably inherit from QuasiNewton inste
         Returns the derivative of (self.)function with respect to alpha
         '''
         h=self.h
-        print("h: "+ str(h))
         return lambda alpha: (self.function(x+(alpha+h)*s)-self.function(x+(alpha-h)*s))/(2*h)
         
 
     def _exactLineSearch_(self, x_k,s_k,f_bar):
-        print("f_bar: " + str(f_bar))
         fderive=self._derive_(x_k,s_k)
-        print("fderive: " + str(fderive(0)))
         mu=(f_bar-self.function(x_k))/(self.rho*fderive(0))
-        print("mu: " + str(mu))
         alpha = N.linspace(0,mu,1000)
         test = lambda alpha: self.function(x_k+alpha*s_k)
         for i in range(0,1000):
@@ -254,24 +220,16 @@ class BadBroyden(QuasiNewton):
     #Every step, caclulate Q(k), then use G^-1 = H, where H = Q(k)^-1 -- see wikipedia broyden's method 
 
     def hessian(self, H, gamma, delta):
-        #Find Q as described in 3.15
-        #H = inv(Q)
         return H + N.dot((delta - N.dot(H,gamma))/(N.dot(gamma, gamma)),gamma)
 
-class DFP(QuasiNewton): #Uses 3.18 for H
+class DFP(QuasiNewton): 
 
     def hessian(self, H, gamma, delta):
-#        H = self.H #This increases readability a lot, and since they are just objects, it will probably not waste a lot of computational power
- #       gamma = self.gamma
-  #      delta = self.delta
         return H + N.outer(delta, delta)/N.dot(delta, gamma) - N.outer(N.dot(H,gamma),N.dot(gamma,H))/N.dot(gamma,N.dot(H,gamma))
 
 class BFGS(QuasiNewton):
 
     def hessian(self, H, gamma, delta):
-    #    H = self.H
-     #   gamma = self.gamma
-      #  delta = self.delta
         return H + (1 + N.dot(N.dot(gamma,H),gamma)/N.dot(delta,gamma))*N.outer(delta,delta)/N.dot(delta,gamma)-(N.outer(delta,N.dot(gamma,H)) + N.outer(N.dot(H,gamma),delta))/N.dot(delta,gamma)
 
 
@@ -280,6 +238,6 @@ f = lambda x: 100*(x[1] - x[0]**2)**2+(1-x[0])**2
 g = lambda x: N.array([2*x[0], 2*x[1], 2*x[2]])
 op = OptimizationProblem(f)
 minimize = Newton(op, True)
-minimize = GoodBroyden(op, False)
+minimize = GoodBroyden(op, True)
 x_min = minimize(N.array([2,2]))
 print(x_min)

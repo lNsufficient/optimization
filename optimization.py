@@ -58,6 +58,7 @@ class Optimization(object):
             H_k = self.setupHessian(x0) #what will be done the first run?!
                 #what is g_km1? x_k = x0, g_k = gradient(x_k)
                 #what will H_k be the first run?
+            
         else: 
             H_k = N.eye(N.size(x0))
         self.g_k = [self.gradient[i](x0) for i in range(N.size(x0))]
@@ -112,14 +113,13 @@ class Newton(Optimization): #This should probably inherit from QuasiNewton inste
        # print(G[0,0](x_k))
         G = N.array([[self.numericHessian(x_k)[i,j](x_k) for i in range(N.size(x_k))] for j in range(N.size(x_k))]) #Visst sa claus att vi skulle hitta fkn?
         #G = self.numericHessian(x)
-        print(G)
-        self.cholesky = scipy.linalg.cho_factor(G)
-        
+        print("G: " + str(G))
+        G = 1/2*(G.conj()+ G.T.conj())
+               
             #raise ValueError('Hessian is not positive definite')
             #This will never happen - the decomposition will fail instead,
             #then python will raise an error itself.
-        return 1/2*(G.conj()+ G.T.conj())
-
+        return G
     def numericHessian(self, x):
         h = self.h
         d = N.eye(N.size(x))*h
@@ -128,10 +128,15 @@ class Newton(Optimization): #This should probably inherit from QuasiNewton inste
 
     def newtonDirection(self, G, g_k):
         #VERY IMPORTANT: Make sure that setup hessian has been run before running this, otherwise this will be super incorrect.        
-
-
+         
+        print("G: " + str(G))
+        try:
+            s_k = -scipy.linalg.cho_solve(scipy.linalg.cho_factor(G),g_k)
+        except N.linalg.linalg.LinAlgError:
+            LU = scipy.linalg.lu_factor(G)
+            s_k = scipy.linalg.lu_solve(LU, g_k)
         #Ginv*g => G*a = g, a = Ginv*g = cho_solve(cho_factor(G), g)
-        return -scipy.linalg.cho_solve(scipy.linalg.cho_factor(G),g_k) 
+        return s_k 
 
     def lineSearch(self,x_k,s_k,f_bar): #Since this is just an optimization class
         if (self.isExact == True):
@@ -274,6 +279,6 @@ f = lambda x: (1-x[0])**4+x[1]**2-x[2]**2
 f = lambda x: 100*(x[1] - x[0]**2)**2+(1-x[0])**2
 g = lambda x: N.array([2*x[0], 2*x[1], 2*x[2]])
 op = OptimizationProblem(f)
-#minimize = Newton(op, True)
-minimize = BFGS(op, True)
-minimize(N.array([10,10]))
+minimize = Newton(op, True)
+minimize = DFP(op, True)
+minimize(N.array([1.1,1]))

@@ -15,7 +15,7 @@ class testOptimization(unittest.TestCase):
         f = lambda x: (1-x[0])**2+(x[1]-3)**2+(x[2]+1)**2
         op = O.OptimizationProblem(f)
         minimize = O.Newton(op,True)
-        xmin = minimize(N.array([0.,0,0]))
+        xmin = O.minimize(N.array([0.,0,0]))
         expected = N.array([1,3,-1])
         print(xmin)
         for i in range(3):

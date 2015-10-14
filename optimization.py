@@ -18,7 +18,7 @@ class OptimizationProblem(object):
 
     def __init__(self, function, gradient=None): #This should be okay even for
         self.function = function #(...) subclasses, if they don't send any 
-        self.h = 1e-9
+        self.h = 1e-7
         self.gradient = gradient
 
 class Optimization(object):
@@ -61,8 +61,6 @@ class Optimization(object):
 
         #This "The loop"
         while (True):
-            #print("g_k" + str(self.g_k))
-            print(self.x_k)
             #Compute s^k = -H^k*g^k
             s_k = self.newtonDirection(H_k, self.g_k)
             if s_k is None:
@@ -100,8 +98,6 @@ class Optimization(object):
                 H_k = self.hessian(H_k, self.gamma_k(), self.delta_k()) 
             if (N.linalg.norm(alpha_k*s_k) < tol and ((self.function(self.x_k)-self.function(self.x_k+alpha_k*s_k))<tol)):
                 break
-            print(self.x_k)
-            print(self.function(self.x_k))
         return self.x_k
 
     def gamma_k(self): 
@@ -225,7 +221,7 @@ class Newton(Optimization):
 
     def _exactLineSearch_(self, x_k,s_k,f_bar):
 
-        mu=100 #Maybe, mu should be chosen in a smarter way than this, but for now, we let it stay like this. 
+        mu=300 #Maybe mu could be chosen in a smarter way than this, but for now, we let it stay like this. 
         test = lambda alpha: self.function(x_k+alpha*s_k) 
         tmin = 0
         tmax = mu
@@ -268,15 +264,15 @@ class BFGS(QuasiNewton):
     def hessian(self, H, gamma, delta):
         return H + (1 + N.dot(N.dot(gamma,H),gamma)/N.dot(delta,gamma))*N.outer(delta,delta)/N.dot(delta,gamma)-(N.outer(delta,N.dot(gamma,H)) + N.outer(N.dot(H,gamma),delta))/N.dot(delta,gamma)
 
-"""
-f = lambda x: (1-x[0])**4+x[1]**2-x[2]**2
-f = lambda x: 100*(x[1] - x[0]**2)**2+(1-x[0])**2
-f = lambda x: 100*(x[0] - x[1]**2)**2+(1-x[1])**2
-g = lambda x: N.array([2*x[0], 2*x[1], 2*x[2]])
-op = OptimizationProblem(f)
-minimize = Newton(op, True)
-minimize = GoodBroyden(op, True)
-x_min = minimize(N.array([53,-260]))
-print(x_min)
-"""
+
+#f = lambda x: (1-x[0])**4+x[1]**2-x[2]**2
+#f = lambda x: 100*(x[1] - x[0]**2)**2+(1-x[0])**2
+#f = lambda x: 100*(x[0] - x[1]**2)**2+(1-x[1])**2
+#g = lambda x: N.array([2*x[0], 2*x[1], 2*x[2]])
+#op = OptimizationProblem(f)
+#minimize = Newton(op, True)
+#minimize = GoodBroyden(op, True)
+#x_min = minimize(N.array([53,-260]))
+#print(x_min)
+
 

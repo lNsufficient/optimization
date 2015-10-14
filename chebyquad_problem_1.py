@@ -92,15 +92,9 @@ if __name__ == '__main__':
     xmin= so.fmin_bfgs(chebyquad,x,gradchebyquad)  # should converge after 18 iterations  
     columns = numpy.eye(numpy.size(x,0))
     g = [lambda x, i=i: gradchebyquad(columns[:,i]*x)[i] for i in range(numpy.size(x))]
-    print(chebyquad(x))
     print(xmin)
     optProb = op.OptimizationProblem(chebyquad, g) 
-    optim = op.GoodBroyden(optProb, True)
+    optim = op.BFGS(optProb, True)
     xmin2 = optim(x)
-    xmin3 = xmin2 - 0.0001 * numpy.ones(numpy.size(x))
-    diff=chebyquad(xmin)-chebyquad(xmin3)
-    print("diff = " + str(diff))
-    print(chebyquad(xmin2))
-    print(chebyquad([0.02909378,  0.37310121,  0.18100035,  0.39468802,  0.66869994,  0.61839903,
-  0.96004864,  0.83232425]))
-    
+    print("Function value from our method", chebyquad(xmin2))
+        

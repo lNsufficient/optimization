@@ -62,11 +62,12 @@ class testOptimization(unittest.TestCase):
         f = lambda x: (1-x[0])**2+(x[1]-3)**2+(x[2]+1)**2
         op = O.OptimizationProblem(f)
         minimize = O.BadBroyden(op,False)
-        xmin = minimize(N.array([1.,2.5,0]))
-        expected = N.array([1,3,-1])
+        xmin = minimize(N.array([1.1,2.9,-1.1]))
+        expected = N.array([1.,3,-1])
         print('FAIL'+str(xmin))
         for i in range(3):
-            self.assertTrue(abs(xmin[i]-expected[i])<0.1)
+            #self.assertTrue(abs(xmin[i]-expected[i])<0.1)
+            self.assertAlmostEqual(xmin[i],expected[i],4)
 
     def testSecondDegreePolynomialDFPExact(self):
         f = lambda x: (1-x[0])**2+(x[1]-3)**2+(x[2]+1)**2
@@ -83,7 +84,6 @@ class testOptimization(unittest.TestCase):
         minimize = O.DFP(op,False)
         xmin = minimize(N.array([1.,2.5,0]))
         expected = N.array([1,3,-1])
-        print('FAIL'+str(xmin))
         for i in range(3):
             self.assertTrue(abs(xmin[i]-expected[i])<0.00001)
 
@@ -102,7 +102,6 @@ class testOptimization(unittest.TestCase):
         minimize = O.BFGS(op,False)
         xmin = minimize(N.array([1.,2.5,0]))
         expected = N.array([1,3,-1])
-        print('FAIL'+str(xmin))
         for i in range(3):
             self.assertTrue(abs(xmin[i]-expected[i])<0.00001)
 

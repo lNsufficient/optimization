@@ -18,7 +18,7 @@ class OptimizationProblem(object):
 
     def __init__(self, function, gradient=None): #This should be okay even for
         self.function = function #(...) subclasses, if they don't send any 
-        self.h = 1e-7
+        self.h = 1e-9
         self.gradient = gradient
 
 class Optimization(object):
@@ -61,21 +61,47 @@ class Optimization(object):
 
         #This "The loop"
         while (True):
+            #print("g_k" + str(self.g_k))
+            print(self.x_k)
             #Compute s^k = -H^k*g^k
-            if (self.quasiNewton == False):
-                s_k = self.newtonDirection(H_k, self.g_k)
-            else:
-                s_k = -N.dot(H_k,self.g_k)
+            s_k = self.newtonDirection(H_k, self.g_k)
+            if s_k is None:
+                print("s_k is nonetype")
+
+#This was commented 13/10 14:38
+#            if (self.quasiNewton == False):
+ #               s_k = self.newtonDirection(H_k, self.g_k)
+  #          else:
+   #             s_k = -N.dot(H_k,self.g_k)
             #Line search for alpha^k
+
             alpha_k = self.lineSearch(self.x_k, s_k, tol)
+            if (alpha_k == 0):
+                print("Alpha == 0!")    
+                print(x_k)
+                alpha = 0.1
+                
+            #if abs(alpha_k)<=0.0000001:
+             #   print(N.linalg.norm(alpha_k*s_k))
+                #alpha_k=0.1
+            if alpha_k is None:
+                print("alpha_k is None")
+
+                print("H_k" + str(H_k))
+                print("s_k" + str(s_k))
+                print("x_k" + str(self.x_k))
+                print("g_k" + str(self.g_k))
+
             (self.x_k, self.x_km1)= (self.x_k+alpha_k*s_k, self.x_k)
             (self.g_k, self.g_km1) = (N.array([self.gradient[i](self.x_k) for i in range(N.size(self.x_k))]), self.g_k)
             if (self.quasiNewton == False):
                 H_k = self.setupHessian(self.x_k)
             else:
                 H_k = self.hessian(H_k, self.gamma_k(), self.delta_k()) 
-            if (N.linalg.norm(self.x_k - self.x_km1) < tol):
+            if (N.linalg.norm(alpha_k*s_k) < tol and ((self.function(self.x_k)-self.function(self.x_k+alpha_k*s_k))<tol)):
                 break
+            print(self.x_k)
+            print(self.function(self.x_k))
         return self.x_k
 
     def gamma_k(self): 
@@ -136,7 +162,10 @@ class Newton(Optimization):
         f_prev = self.function(x_k)
         f0=self.function(x_k)
         self.fderive0 = self.fderive(0) #Self???
-        mu=(f_bar-f0)/(self.rho*self.fderive0) 
+        if self.fderive0==0:
+            mu = 10*(f_bar-f0)/self.rho
+        else:
+            mu=(f_bar-f0)/(self.rho*self.fderive0) 
         for i in range(0,SomethingLarge):
             f=self.function(x_k+alphai*s_k)
             if f<=f_bar:
@@ -195,31 +224,25 @@ class Newton(Optimization):
         
 
     def _exactLineSearch_(self, x_k,s_k,f_bar):
-        fderive=self._derive_(x_k,s_k)
-        mu=(f_bar-self.function(x_k))/(self.rho*fderive(0))
+
+        mu=100 #Maybe, mu should be chosen in a smarter way than this, but for now, we let it stay like this. 
         test = lambda alpha: self.function(x_k+alpha*s_k) 
-        alpha = N.linspace(0,mu,1000)
-        for i in range(0,1000):
-            alpha[i]=test(alpha[i])
-        return mu*N.argmin(alpha)/1000
- 
-#WHY DOES THIS NOT WORK:
         tmin = 0
         tmax = mu
         points = 100
-        for j in range(3):
+        for j in range(9):
             fpoints = [test(i) for i in N.linspace(tmin, tmax, points)]
             deltat = (tmax-tmin)/points
-            minx = tmin + deltat*N.argmin(fpoints)
-            tmin = minx - deltat
-            tmax = minx + (tmax-tmin)/points  #should add deltat instead, doesn't work
-        return minx
+            (tmin, tmax) = (tmin + deltat*(N.argmin(fpoints)-1), tmin + deltat*(N.argmin(fpoints)+1))
+        return  tmin + deltat*N.argmin(fpoints)
 
 class QuasiNewton(Newton):
     def __init__(self, oP, isExact=True):
         super().__init__(oP, isExact)
         self.quasiNewton = True
 
+    def newtonDirection(self, H_k, g_k):
+        return -N.dot(H_k, g_k)        
 
 class GoodBroyden(QuasiNewton):
     #Rank 1 update -- see wikipedia broyden's method
@@ -245,12 +268,15 @@ class BFGS(QuasiNewton):
     def hessian(self, H, gamma, delta):
         return H + (1 + N.dot(N.dot(gamma,H),gamma)/N.dot(delta,gamma))*N.outer(delta,delta)/N.dot(delta,gamma)-(N.outer(delta,N.dot(gamma,H)) + N.outer(N.dot(H,gamma),delta))/N.dot(delta,gamma)
 
-
+"""
 f = lambda x: (1-x[0])**4+x[1]**2-x[2]**2
 f = lambda x: 100*(x[1] - x[0]**2)**2+(1-x[0])**2
+f = lambda x: 100*(x[0] - x[1]**2)**2+(1-x[1])**2
 g = lambda x: N.array([2*x[0], 2*x[1], 2*x[2]])
 op = OptimizationProblem(f)
 minimize = Newton(op, True)
 minimize = GoodBroyden(op, True)
-x_min = minimize(N.array([1.9,11]))
+x_min = minimize(N.array([53,-260]))
 print(x_min)
+"""
+
